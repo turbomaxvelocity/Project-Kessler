@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project Kessler | Autonomous Orbital Remediation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; font-family:'Share Tech Mono',monospace; overflow:hidden; height:100vh; width:100vw; color:#00f2ff; }
+body::after { content:""; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px); pointer-events:none; z-index:50; }
+#canvas { display:block; position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:0; }
+
+/* INTRO */
+#intro { position:fixed; inset:0; background:#000; z-index:100; }
+#intro-video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
+#intro-overlay { position:absolute; inset:0; background:#000; opacity:0; z-index:1; transition:opacity 1.2s; pointer-events:none; }
+
+/* All stages sit above the video */
+#stage-video, #stage-title, #stage-briefing {
+  position:absolute; inset:0; z-index:2;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+#stage-title, #stage-briefing { opacity:0; pointer-events:none; transition:opacity 1s; }
+
+/* Stage 1 */
+#video-vignette { position:absolute; inset:0; background:radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.8) 100%); }
+#stage-video { background:#000; }
+#click-prompt { position:relative; font-family:'Orbitron'; font-size:11px; letter-spacing:5px; color:rgba(0,242,255,0.8); animation:blink 1.4s infinite; cursor:pointer; text-shadow:0 0 20px rgba(0,242,255,0.5); margin-top:75vh; }
+
+/* Stage 2 */
+#title-main { font-family:'Orbitron'; font-size:clamp(52px,9vw,110px); font-weight:900; letter-spacing:-2px; color:#fff; text-align:center; line-height:1; text-shadow:0 0 80px rgba(255,255,255,0.15); }
+#title-main span { color:#ff00ff; text-shadow:0 0 60px rgba(255,0,255,0.9); }
+#title-sub { font-family:'Orbitron'; font-size:clamp(9px,1.1vw,13px); letter-spacing:6px; color:rgba(0,242,255,0.6); margin-top:14px; text-align:center; }
+#title-line { width:0; height:1px; background:rgba(0,242,255,0.5); margin:20px auto; transition:width 1.2s ease; }
+
+/* Stage 3 */
+#briefing-box { position:relative; background:rgba(0,6,14,0.96); padding:48px 52px; border:1px solid rgba(0,242,255,0.3); border-left:6px solid #ff00ff; max-width:680px; width:90%; }
+.intro-tag { font-family:'Orbitron'; font-size:8px; letter-spacing:4px; color:rgba(0,200,255,0.35); margin-bottom:20px; }
+.intro-title { font-family:'Orbitron'; font-size:38px; font-weight:900; margin-bottom:6px; letter-spacing:-1px; }
+.intro-title span { color:#ff00ff; }
+.intro-sub { font-family:'Orbitron'; font-size:9px; letter-spacing:3px; color:rgba(0,200,255,0.4); margin-bottom:32px; }
+#typewriter { line-height:1.9; font-size:13px; color:rgba(255,255,255,0.55); min-height:120px; margin-bottom:28px; }
+#intro-btn { font-family:'Orbitron'; font-size:9px; letter-spacing:3px; padding:14px 0; width:100%; border:1px solid #00f2ff; background:rgba(0,242,255,0.05); color:#00f2ff; cursor:pointer; clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); transition:all .3s; }
+#intro-btn:hover { background:rgba(0,242,255,0.15); }
+#intro-status { font-size:9px; color:rgba(0,200,255,0.25); margin-top:12px; text-align:center; }
+
+/* HUD */
+#hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+.panel { position:absolute; background:rgba(0,4,12,0.85); border:1px solid rgba(0,242,255,0.15); padding:18px; pointer-events:all; }
+.panel-l { top:0; left:0; bottom:0; width:240px; border-left:none; border-top:none; border-bottom:none; }
+.panel-r { top:0; right:0; bottom:0; width:240px; border-right:none; border-top:none; border-bottom:none; }
+.plabel { font-family:'Orbitron'; font-size:8px; letter-spacing:2px; color:rgba(255,0,255,0.45); margin-bottom:12px; margin-top:4px; }
+.metric { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(0,242,255,0.06); }
+.mlabel { font-size:8px; letter-spacing:.8px; color:rgba(0,200,255,0.35); }
+.mval { font-size:11px; font-weight:bold; color:#00f2ff; }
+.mval.warn { color:#ff00ff; }
+.mval.danger { color:#ff3300; }
+#log { font-size:9px; color:rgba(0,255,136,0.65); line-height:2; margin-top:14px; height:200px; overflow:hidden; }
+.log-entry { opacity:.4; } .log-entry:first-child { opacity:1; color:#00ff88; }
+#advice-box { font-size:11px; line-height:1.8; color:rgba(255,255,255,0.6); font-style:italic; margin-top:8px; border-left:2px solid rgba(255,0,255,0.3); padding-left:10px; }
+#advice-label { font-family:'Orbitron'; font-size:8px; color:rgba(255,0,255,0.4); letter-spacing:2px; margin-bottom:6px; }
+
+#mode-badge { position:absolute; top:18px; left:50%; transform:translateX(-50%); font-family:'Orbitron'; font-weight:900; font-size:13px; letter-spacing:5px; color:#ff00ff; white-space:nowrap; text-shadow:0 0 20px rgba(255,0,255,0.5); }
+
+#crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:48px; height:48px; pointer-events:none; }
+#crosshair::before,#crosshair::after { content:''; position:absolute; background:rgba(0,242,255,0.4); }
+#crosshair::before { width:1px; height:100%; left:50%; }
+#crosshair::after { height:1px; width:100%; top:50%; }
+.ch-ring { position:absolute; inset:10px; border:1px solid rgba(0,242,255,0.2); border-radius:50%; }
+
+#bottom-bar { position:absolute; bottom:0; left:240px; right:240px; height:110px; display:flex; align-items:center; justify-content:center; gap:16px; background:linear-gradient(transparent,rgba(0,8,20,0.98)); border-top:1px solid rgba(0,242,255,0.08); pointer-events:all; }
+.btn { font-family:'Orbitron'; font-size:9px; font-weight:700; letter-spacing:2px; padding:13px 22px; border:1px solid rgba(0,242,255,0.4); background:rgba(0,242,255,0.04); color:#00f2ff; cursor:pointer; clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%); transition:all .25s; white-space:nowrap; }
+.btn:hover:not(:disabled) { background:rgba(0,242,255,0.14); box-shadow:0 0 20px rgba(0,242,255,0.15); }
+.btn:disabled { opacity:.15; cursor:not-allowed; }
+.btn-m { border-color:rgba(255,140,0,0.45); color:#ff8800; background:rgba(255,140,0,0.04); }
+.btn-m:hover:not(:disabled) { background:rgba(255,140,0,0.14); }
+.btn-d { border-color:rgba(255,0,255,0.45); color:#ff00ff; background:rgba(255,0,255,0.04); }
+.btn-d:hover:not(:disabled) { background:rgba(255,0,255,0.14); }
+.btn-d.active { background:rgba(255,0,255,0.2); animation:blink .6s infinite; }
+.readout { text-align:center; min-width:52px; }
+.rval { font-family:'Orbitron'; font-size:18px; font-weight:700; color:#00f2ff; }
+.rlabel { font-size:7px; letter-spacing:2px; color:rgba(0,200,255,0.3); margin-top:2px; }
+.divider { width:1px; height:34px; background:rgba(0,200,255,0.1); flex-shrink:0; }
+
+#iprompt { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,4,12,0.96); border:1px solid rgba(255,0,255,0.5); border-left:5px solid #ff00ff; padding:24px 32px; display:none; pointer-events:all; z-index:30; min-width:360px; }
+#iprompt h3 { font-family:'Orbitron'; color:#ff00ff; font-size:12px; letter-spacing:3px; margin-bottom:8px; }
+#iprompt p { color:rgba(255,255,255,0.5); font-size:10px; margin-bottom:18px; line-height:1.7; }
+.btn-row { display:flex; gap:12px; }
+
+@keyframes blink { 50%{opacity:.4} }
+@keyframes glitch { 0%{transform:translate(0)} 20%{transform:translate(-3px,1px)} 40%{transform:translate(3px,-1px)} 60%{transform:translate(-2px,2px)} 80%{transform:translate(2px,-2px)} 100%{transform:translate(0)} }
+.glitching { animation:glitch .1s infinite; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<!-- INTRO -->
+<div id="intro">
+  <!-- Persistent video — always visible behind all stages -->
+  <video id="intro-video" muted playsinline loop>
+    <source src="https://private-user-images.githubusercontent.com/238754819/580361864-6005865a-d150-414d-be9b-cc52b62bdb47.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzY1NDQwMTQsIm5iZiI6MTc3NjU0MzcxNCwicGF0aCI6Ii8yMzg3NTQ4MTkvNTgwMzYxODY0LTYwMDU4NjVhLWQxNTAtNDE0ZC1iZTliLWNjNTJiNjJiZGI0Ny5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNDE4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDQxOFQyMDIxNTRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1iNmYxMjJmODMxODVhMDA3YjFmZTY2NTk3YjFjMTJkY2I3YjFhZjg1N2U4NTJjMmIzMmE4MzllNTc0ODU5NmYwJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ._109L9S2I0LeLX_1kvS0vwrerOCjTQfSoZz_nbA4nb0" type="video/mp4">
+  </video>
+
+  <!-- Dark overlay that intensifies on stage 2+ -->
+  <div id="intro-overlay"></div>
+
+  <!-- STAGE 1: just the prompt over raw video -->
+  <div id="stage-video">
+    <div id="video-vignette"></div>
+    <div id="click-prompt" onclick="goToTitle()">▶ &nbsp; PRESS TO BEGIN</div>
+  </div>
+
+  <!-- STAGE 2: Title card -->
+  <div id="stage-title">
+    <div id="title-main">PROJECT<br><span>KESSLER</span></div>
+    <div id="title-line"></div>
+    <div id="title-sub">AUTONOMOUS ORBITAL DEBRIS REMEDIATION</div>
+  </div>
+
+  <!-- STAGE 3: Briefing -->
+  <div id="stage-briefing">
+    <div id="briefing-box">
+      <div class="intro-tag">NASA ADRV SIMULATION — CLASSIFIED BRIEFING</div>
+      <div class="intro-title">PROJECT <span>KESSLER</span></div>
+      <div class="intro-sub">Autonomous Orbital Debris Remediation</div>
+      <p id="typewriter"></p>
+      <button id="intro-btn" onclick="startSim()">INITIATE MISSION</button>
+      <div id="intro-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="mode-badge">SYSTEM STANDBY</div>
+  <div id="crosshair"><div class="ch-ring"></div></div>
+
+  <div class="panel panel-l">
+    <div class="plabel">Mission Telemetry</div>
+    <div class="metric"><span class="mlabel">ACTIVE DEBRIS</span><span class="mval" id="debris-count">—</span></div>
+    <div class="metric"><span class="mlabel">REMOVED</span><span class="mval" id="captured">0</span></div>
+    <div class="metric"><span class="mlabel">CASCADE EVENTS</span><span class="mval" id="cascades">0</span></div>
+    <div class="metric"><span class="mlabel">CLOSEST THREAT</span><span class="mval" id="dist-threat">—</span></div>
+    <div class="metric"><span class="mlabel">ADRV PHASE</span><span class="mval" id="phase-val">—</span></div>
+    <div class="plabel" style="margin-top:16px">Processor Log</div>
+    <div id="log"></div>
+  </div>
+
+  <div class="panel panel-r">
+    <div class="plabel">Threat Analysis</div>
+    <div id="threat-list"></div>
+    <div class="plabel" style="margin-top:18px">Gemini Strategic Uplink</div>
+    <div id="advice-label">AI COMMANDER</div>
+    <div id="advice-box">Connecting to strategic uplink...</div>
+    <div class="plabel" style="margin-top:18px">Mission</div>
+    <div style="font-size:9px;color:rgba(0,200,255,0.4);line-height:2">
+      Intercept collision-bound debris.<br>
+      Match rotation. Fire snare.<br>
+      Execute deorbit burn.<br><br>
+      <span style="color:rgba(255,0,255,0.5)">Click map to deploy debris.</span>
+    </div>
+  </div>
+
+  <div id="bottom-bar">
+    <div class="readout"><div class="rval" id="speed-val">0.0</div><div class="rlabel">VELOCITY</div></div>
+    <div class="divider"></div>
+    <button class="btn" id="btn-lock" onclick="doLock()" disabled>LOCK TARGET</button>
+    <button class="btn btn-m" id="btn-snare" onclick="doSnare()" disabled>FIRE SNARE</button>
+    <button class="btn btn-d" id="btn-deorbit" onclick="doBurn()" disabled>DEORBIT BURN</button>
+    <button class="btn" onclick="resetSim()" style="font-size:8px;padding:13px 14px">RESET</button>
+    <div class="divider"></div>
+    <div class="readout"><div class="rval" id="phase-display" style="font-size:11px">—</div><div class="rlabel">PHASE</div></div>
+  </div>
+
+  <div id="iprompt">
+    <h3>AI COLLISION WARNING</h3>
+    <p id="iprompt-detail">Two objects on collision course.</p>
+    <p style="font-size:9px;color:rgba(0,200,255,0.35);margin-top:-10px;margin-bottom:14px">Intercept now or the cascade begins.</p>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="confirmIntercept()">INTERCEPT</button>
+      <button class="btn" onclick="dismissIntercept()">IGNORE THREAT</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+var GEMINI_KEY = 'YOUR_GEMINI_KEY_HERE';
+var ELEVEN_KEY = 'YOUR_ELEVEN_KEY_HERE';
+var ELEVEN_VOICE = 'YOUR_ELEVEN_VOICE_ID_HERE';
+
+// ─── CANVAS ───────────────────────────────────────────────
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
+
+// ─── STARS ────────────────────────────────────────────────
+var stars = Array.from({length:300}, function() { return {
+  x: Math.random(), y: Math.random(),
+  r: Math.random()*1.4+0.2, spd: Math.random()*0.00015+0.00004, b: Math.random()
+}; });
+
+// ─── RNG ──────────────────────────────────────────────────
+function rng32(seed) {
+  // FIX #7: ensure seed is unique per call site by mixing in a counter
+  seed = (seed ^ (++rng32.counter * 0x9e3779b9)) >>> 0;
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    var t = Math.imul(seed ^ seed>>>15, 1|seed);
+    t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296;
+  };
+}
+rng32.counter = 0;
+
+// ─── STATE ────────────────────────────────────────────────
+var state = {};
+var running = false;
+var frame = 0;
+// FIX #2: single canonical RAF id — no duplicate loops
+var rafId = null;
+
+function initState() {
+  var r = rng32(42);
+  var debris = [];
+  for (var i=0; i<10; i++) {
+    debris.push({
+      x:(r()-0.5)*480, y:(r()-0.5)*320,
+      z:r()*380+160,
+      vx:(r()-0.5)*0.2, vy:(r()-0.5)*0.15, vz:-(r()*0.1+0.03),
+      radius:r()*7+5,
+      tumble:r()*Math.PI*2, tumbleRate:(r()-0.5)*0.03,
+      pts:Math.floor(r()*3)+5
+    });
+  }
+  // Deliberate slow collision pair
+  debris[2] = {x:-140,y:60,z:340, vx:0.45,vy:-0.22,vz:-0.06, radius:9, tumble:0, tumbleRate:0.035, pts:6};
+  debris[3] = {x:140,y:-60,z:370, vx:-0.45,vy:0.22,vz:-0.06, radius:9, tumble:1.4, tumbleRate:-0.03, pts:5};
+
+  state = {
+    debris: debris, deorbiting: [],
+    ship: {x:0, y:0, vx:0, vy:0},
+    shipVz: 0,
+    mode: 'TRANSIT', adrvPhase: 'NONE',
+    frame: 0,
+    captured: 0, cascades: 0,
+    targetObj: null, targetIdx: -1,
+    pendingThreat: null, threatCooldown: 0, cascadeCooldown: 0,
+    cameraZoom: 1.0, captureFlash: 0, approachDist: 999,
+    snareProgress: 0, rotationMatch: 0, shipRotation: 0,
+    glitch: 0,
+    log: ['SYSTEM ONLINE — awaiting mission start.']
+  };
+}
+initState();
+
+// ─── LOGGING ──────────────────────────────────────────────
+function addLog(msg) {
+  state.log.unshift('[' + new Date().toLocaleTimeString() + '] ' + msg);
+  if (state.log.length > 20) state.log.pop();
+  var el = document.getElementById('log');
+  if (el) el.innerHTML = state.log.slice(0,8).map(function(l,i) {
+    return '<div class="log-entry" style="opacity:'+(1-i*0.11)+'">'+l+'</div>';
+  }).join('');
+}
+
+function setPhase(phase) {
+  state.adrvPhase = phase;
+  var pv = document.getElementById('phase-val');
+  var pd = document.getElementById('phase-display');
+  if (pv) pv.textContent = phase;
+  if (pd) pd.textContent = phase;
+}
+
+// ─── GEMINI ───────────────────────────────────────────────
+function getGeminiAdvice(context) {
+  var box = document.getElementById('advice-box');
+  if (box) box.textContent = 'Uplink active...';
+  var prompt = 'You are an AI space mission commander. Context: ' + context + '. Give a 1-2 sentence tactical status update in a terse, urgent military tone.';
+  fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+  }).then(function(res) { return res.json(); }).then(function(data) {
+    var text = data.candidates[0].content.parts[0].text;
+    if (box) box.textContent = text;
+  }).catch(function() {
+    if (box) box.textContent = 'Signal lost. Proceed on autonomous protocols.';
+  });
+}
+
+// ─── PROJECTION ───────────────────────────────────────────
+function project(x, y, z) {
+  if (z <= 0) return null;
+  var fov = 500 * state.cameraZoom;
+  return { sx: W/2 + x*fov/z, sy: H/2 - y*fov/z, scale: fov/z };
+}
+
+// ─── DRAW STARS ───────────────────────────────────────────
+function drawStars() {
+  var thrust = state.shipVz || 0;
+  stars.forEach(function(s) {
+    var x = ((s.x + frame*s.spd) % 1)*W;
+    var y = s.y*H;
+    var b = 0.3 + s.b*0.7;
+    if (thrust > 0.8) {
+      var dx = x-W/2, dy = y-H/2;
+      var len = Math.sqrt(dx*dx+dy*dy)+0.001;
+      var streak = (thrust/3.5)*(len/180)*12;
+      ctx.beginPath(); ctx.moveTo(x,y);
+      ctx.lineTo(x+(dx/len)*streak, y+(dy/len)*streak);
+      ctx.strokeStyle = 'rgba(180,210,255,'+(b*0.7)+')';
+      ctx.lineWidth = s.r*0.8; ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(x,y,s.r,0,Math.PI*2);
+      ctx.fillStyle = 'rgba(180,210,255,'+b+')'; ctx.fill();
+    }
+  });
+}
+
+// ─── DRAW DEBRIS ──────────────────────────────────────────
+function drawDebris() {
+  var threats = [];
+  state.debris.forEach(function(d, i) {
+    var rx = d.x-state.ship.x, ry = d.y-state.ship.y;
+    var p = project(rx, ry, d.z);
+    if (!p) return;
+    var isTarget = (d === state.targetObj);
+    // FIX #4/#5: use Math.sqrt instead of ** operator for ES5 consistency
+    var dist = Math.sqrt(rx*rx + ry*ry + d.z*d.z);
+    var size = Math.max(2, p.scale*d.radius);
+
+    // Glitch effect on cascade
+    var gx = state.glitch > 0 ? (Math.random()-0.5)*6 : 0;
+    var gy = state.glitch > 0 ? (Math.random()-0.5)*6 : 0;
+
+    // Glow
+    if (isTarget) {
+      var pulse = 0.2+Math.abs(Math.sin(frame*0.08))*0.3;
+      var g = ctx.createRadialGradient(p.sx+gx,p.sy+gy,0,p.sx+gx,p.sy+gy,size*5);
+      g.addColorStop(0,'rgba(255,0,255,'+(pulse+0.2)+')');
+      g.addColorStop(1,'rgba(255,0,255,0)');
+      ctx.beginPath(); ctx.arc(p.sx+gx,p.sy+gy,size*5,0,Math.PI*2);
+      ctx.fillStyle=g; ctx.fill();
+    }
+
+    // Irregular chunk
+    ctx.save();
+    ctx.translate(p.sx+gx, p.sy+gy);
+    ctx.rotate(d.tumble);
+    ctx.beginPath();
+    var pts = d.pts||6;
+    for (var k=0; k<pts; k++) {
+      var a=(k/pts)*Math.PI*2;
+      var jit = 0.55+((i*7+k*3)%5)/10;
+      var r2 = size*jit;
+      if (k===0) ctx.moveTo(Math.cos(a)*r2, Math.sin(a)*r2);
+      else ctx.lineTo(Math.cos(a)*r2, Math.sin(a)*r2);
+    }
+    ctx.closePath();
+    if (state.glitch > 0 && isTarget) {
+      ctx.fillStyle='rgba(255,0,255,0.8)';
+      ctx.strokeStyle='#ff00ff';
+    } else {
+      ctx.fillStyle=isTarget?'rgba(255,80,255,0.75)':'rgba(160,50,50,0.85)';
+      ctx.strokeStyle=isTarget?'#ff88ff':'#ff5555';
+    }
+    ctx.lineWidth=1; ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // Threat box
+    if (dist < 600) {
+      var bw=size*4+18, bh=size*3+14;
+      var bx=p.sx-bw/2, by=p.sy-bh/2, cl=7;
+      ctx.strokeStyle=isTarget?'rgba(255,0,255,'+(0.5+Math.sin(frame*0.12)*0.3)+')':'rgba(0,242,255,0.2)';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(bx+cl,by); ctx.lineTo(bx,by); ctx.lineTo(bx,by+cl);
+      ctx.moveTo(bx+bw-cl,by); ctx.lineTo(bx+bw,by); ctx.lineTo(bx+bw,by+cl);
+      ctx.moveTo(bx,by+bh-cl); ctx.lineTo(bx,by+bh); ctx.lineTo(bx+cl,by+bh);
+      ctx.moveTo(bx+bw-cl,by+bh); ctx.lineTo(bx+bw,by+bh); ctx.lineTo(bx+bw,by+bh-cl);
+      ctx.stroke();
+      ctx.fillStyle=isTarget?'#ff88ff':'rgba(0,242,255,0.5)';
+      ctx.font='9px "Share Tech Mono"'; ctx.textAlign='center';
+      ctx.fillText(Math.round(dist)+'u', p.sx, by-4);
+      threats.push({dist:Math.round(dist), isTarget:isTarget, idx:i});
+    }
+  });
+
+  // Threat panel
+  threats.sort(function(a,b){return a.dist-b.dist;});
+  var tl = document.getElementById('threat-list');
+  if (tl) tl.innerHTML = threats.slice(0,5).map(function(t) {
+    return '<div class="metric"><span class="mlabel">OBJ-'+String(t.idx).padStart(2,'0')+'</span>'
+      +'<span class="mval'+(t.isTarget?' warn':'')+'">'+(t.dist)+'u'+(t.isTarget?' ◉':'')+' </span></div>';
+  }).join('');
+}
+
+// ─── DRAW TARGET STATION ──────────────────────────────────
+function drawTarget() {
+  var tz = 2000 - frame*1.0;
+  if (tz <= 0) return;
+  var p = project(0, 0, tz);
+  if (!p) return;
+  var size = Math.max(4, p.scale*20);
+  ctx.save(); ctx.translate(p.sx,p.sy); ctx.rotate(frame*0.004);
+  var alpha = Math.min(0.85, 500/tz);
+  ctx.strokeStyle='rgba(255,220,0,'+alpha+')'; ctx.lineWidth=1.5;
+  for (var i=0; i<6; i++) {
+    var a=(i/6)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*size,Math.sin(a)*size); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(0,0,size*0.35,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+  if (tz < 1200) {
+    ctx.fillStyle='rgba(255,220,0,'+Math.min(.8,400/tz)+')';
+    ctx.font='9px "Share Tech Mono"'; ctx.textAlign='center';
+    ctx.fillText('DOCKING TARGET', p.sx, p.sy-size-5);
+  }
+}
+
+// ─── DRAW VELOCITY LINES ──────────────────────────────────
+function drawVelocityLines() {
+  if (!running) return;
+  ctx.strokeStyle='rgba(0,140,255,0.04)'; ctx.lineWidth=1;
+  for (var i=0; i<10; i++) {
+    var x=(W*(i/10))+(frame*1.5)%(W/10)-40;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x-25,H); ctx.stroke();
+  }
+}
+
+// ─── DRAW SNARE ARM ───────────────────────────────────────
+function drawSnareArm() {
+  if (!state.targetObj||!state.debris.includes(state.targetObj)) return;
+  if (['MATCHING','READY','SNARE','MATED'].indexOf(state.adrvPhase)===-1) return;
+  var td=state.targetObj;
+  var p=project(td.x-state.ship.x, td.y-state.ship.y, td.z);
+  if (!p) return;
+  var cx=W/2, cy=H/2;
+
+  if (state.adrvPhase==='MATCHING') {
+    ctx.beginPath();
+    ctx.arc(cx,cy,60,-Math.PI/2,-Math.PI/2+Math.PI*2*state.rotationMatch);
+    ctx.strokeStyle='rgba(255,200,0,'+(0.3+state.rotationMatch*0.7)+')';
+    ctx.lineWidth=2; ctx.stroke();
+    ctx.font='9px "Share Tech Mono"'; ctx.fillStyle='rgba(255,200,0,0.8)';
+    ctx.textAlign='center';
+    ctx.fillText('ROTATION SYNC '+Math.round(state.rotationMatch*100)+'%', cx, cy+80);
+  }
+
+  if (state.adrvPhase==='SNARE'||state.adrvPhase==='MATED') {
+    var prog=state.snareProgress;
+    var ex=cx+(p.sx-cx)*prog, ey=cy+(p.sy-cy)*prog;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(ex,ey);
+    ctx.strokeStyle='rgba(255,140,0,'+(0.65*prog)+')';
+    ctx.lineWidth=2; ctx.setLineDash([6,3]); ctx.stroke(); ctx.setLineDash([]);
+    if (prog>0.25) {
+      var ang=Math.atan2(p.sy-cy, p.sx-cx), cs=14*prog;
+      ctx.save(); ctx.translate(ex,ey); ctx.rotate(ang);
+      [-0.55,0,0.55].forEach(function(off) {
+        ctx.beginPath(); ctx.moveTo(0,0);
+        ctx.lineTo(cs*Math.cos(off), cs*Math.sin(off)-cs*0.4);
+        ctx.strokeStyle='rgba(255,140,0,'+prog+')'; ctx.lineWidth=2; ctx.stroke();
+      });
+      ctx.restore();
+    }
+    if (state.adrvPhase==='MATED') {
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(p.sx,p.sy);
+      ctx.strokeStyle='rgba(255,140,0,0.4)'; ctx.lineWidth=1.5;
+      ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font='9px "Share Tech Mono"'; ctx.fillStyle='#ff8800';
+      ctx.textAlign='center';
+      ctx.fillText('DEBRIS MATED — READY FOR DEORBIT BURN', cx, H-132);
+    }
+  }
+}
+
+// ─── DRAW DEORBIT ─────────────────────────────────────────
+function drawDeorbit() {
+  state.deorbiting.forEach(function(d) {
+    var p=project(d.x-state.ship.x, d.y-state.ship.y, d.z);
+    if (!p) return;
+    d.trail.forEach(function(pt,i) {
+      var pp=project(pt.x-state.ship.x, pt.y-state.ship.y, pt.z);
+      if (!pp) return;
+      var alpha=(i/d.trail.length)*d.life*0.7;
+      var r3=Math.max(1,pp.scale*d.radius*0.5);
+      ctx.beginPath(); ctx.arc(pp.sx,pp.sy,r3,0,Math.PI*2);
+      ctx.fillStyle=i>d.trail.length*0.6?'rgba(255,255,200,'+alpha+')':'rgba(255,120,20,'+alpha+')';
+      ctx.fill();
+    });
+    var size=Math.max(3,p.scale*d.radius*d.life);
+    var gd=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,size*4);
+    gd.addColorStop(0,'rgba(255,255,200,'+d.life+')');
+    gd.addColorStop(0.3,'rgba(255,140,20,'+(d.life*0.8)+')');
+    gd.addColorStop(1,'rgba(255,60,0,0)');
+    ctx.beginPath(); ctx.arc(p.sx,p.sy,size*4,0,Math.PI*2);
+    ctx.fillStyle=gd; ctx.fill();
+    if (d.life>0.4) {
+      ctx.fillStyle='rgba(255,180,50,'+d.life+')';
+      ctx.font='9px "Share Tech Mono"'; ctx.textAlign='center';
+      ctx.fillText('DEORBIT BURN', p.sx, p.sy-size*4-5);
+    }
+  });
+}
+
+// ─── DRAW APPROACH HUD ────────────────────────────────────
+function drawApproachHUD() {
+  if (state.mode!=='INTERCEPT'||!state.targetObj) return;
+  if (!state.debris.includes(state.targetObj)) return;
+  if (state.adrvPhase==='SNARE'||state.adrvPhase==='MATED'||state.adrvPhase==='DEORBIT') return;
+  var dist=state.approachDist;
+  var prog=Math.max(0,1-dist/200);
+  ctx.font='10px "Share Tech Mono"'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,0,255,'+(0.35+prog*0.55)+')';
+  ctx.fillText('INTERCEPT DISTANCE: '+Math.round(dist)+'u', W/2, H-120);
+  var bx=W/2-100, by=H-108;
+  ctx.strokeStyle='rgba(255,0,255,0.15)'; ctx.lineWidth=1;
+  ctx.strokeRect(bx,by,200,3);
+  ctx.fillStyle='rgba(255,0,255,'+(0.5+prog*0.4)+')';
+  ctx.fillRect(bx,by,200*prog,3);
+  if (dist<80&&Math.sin(frame*0.3)>0) {
+    ctx.font='9px "Share Tech Mono"'; ctx.fillStyle='#ff00ff';
+    ctx.fillText('CAPTURE RANGE — INITIATING ROTATION SYNC', W/2, H-134);
+  }
+}
+
+// ─── DRAW CAPTURE FLASH ───────────────────────────────────
+function drawCaptureFlash() {
+  if (!state.captureFlash) return;
+  ctx.fillStyle='rgba(255,255,255,'+(state.captureFlash/20*0.4)+')';
+  ctx.fillRect(0,0,W,H);
+}
+
+// ─── PHYSICS ──────────────────────────────────────────────
+function ttc(p1,v1,p2,v2) {
+  var dpx=p1.x-p2.x, dpy=p1.y-p2.y, dpz=p1.z-p2.z;
+  var dvx=v1.x-v2.x, dvy=v1.y-v2.y, dvz=v1.z-v2.z;
+  var dvSq=dvx*dvx+dvy*dvy+dvz*dvz;
+  if (dvSq<1e-6) return Infinity;
+  var t=-(dpx*dvx+dpy*dvy+dpz*dvz)/dvSq;
+  return t<0?Infinity:t;
+}
+
+function detectThreat() {
+  var d=state.debris;
+  var max=Math.min(d.length,20);
+  var best=null, bestT=Infinity;
+  for (var i=0; i<max; i++) {
+    for (var j=i+1; j<max; j++) {
+      var t=ttc(d[i],{x:d[i].vx,y:d[i].vy,z:d[i].vz},d[j],{x:d[j].vx,y:d[j].vy,z:d[j].vz});
+      if (t<500) {
+        var fx=d[i].x+d[i].vx*t-(d[j].x+d[j].vx*t);
+        var fy=d[i].y+d[i].vy*t-(d[j].y+d[j].vy*t);
+        var fz=d[i].z+d[i].vz*t-(d[j].z+d[j].vz*t);
+        // FIX #4/#5: Math.sqrt instead of **
+        var dist=Math.sqrt(fx*fx+fy*fy+fz*fz);
+        if (dist<80&&t<bestT&&t>10){bestT=t;best={i:i,j:j,t:Math.round(t)};}
+      }
+    }
+  }
+  return best;
+}
+
+function updatePhysics() {
+  if (!running) return;
+  frame++; state.frame++;
+
+  // Tumble
+  state.debris.forEach(function(d){d.tumble+=d.tumbleRate;});
+
+  // ADRV phase transitions
+  if (state.adrvPhase==='APPROACH'&&state.targetObj&&state.debris.includes(state.targetObj)) {
+    if (state.approachDist<80&&state.approachDist>=0) {
+      setPhase('MATCHING');
+      addLog('MATCHING ROTATION — syncing with debris tumble rate...');
+      getGeminiAdvice('Ship is within 80 units of debris target and initiating rotation matching sequence');
+    }
+  } else if (state.adrvPhase==='MATCHING'&&state.targetObj&&state.debris.includes(state.targetObj)) {
+    var tgt=state.targetObj;
+    var diff=tgt.tumble-state.shipRotation;
+    diff=diff-Math.round(diff/(Math.PI*2))*Math.PI*2;
+    state.shipRotation+=tgt.tumbleRate + diff*0.08;
+    state.rotationMatch=Math.max(0,1-Math.abs(diff)/Math.PI);
+    if (state.rotationMatch>0.93) {
+      setPhase('READY');
+      document.getElementById('btn-snare').disabled=false;
+      addLog('ROTATION MATCHED — ready to fire snare.');
+    }
+  } else if (state.adrvPhase==='SNARE') {
+    state.snareProgress=Math.min(1,state.snareProgress+0.022);
+    if (state.snareProgress>=1) {
+      setPhase('MATED');
+      document.getElementById('btn-deorbit').disabled=false;
+      document.getElementById('btn-deorbit').classList.add('active');
+      addLog('SNARE LOCKED — debris mated. Initiate deorbit burn.');
+    }
+  }
+
+  // Move debris
+  state.debris.forEach(function(d) {
+    d.x+=d.vx; d.y+=d.vy; d.z+=d.vz;
+    if (Math.abs(d.x)>340) d.vx*=-1;
+    if (Math.abs(d.y)>280) d.vy*=-1;
+    if (d.z<100){d.z=100;d.vz=Math.abs(d.vz);}
+    if (d.z>640){d.z=640;d.vz=-Math.abs(d.vz);}
+  });
+
+  // Cascade
+  if (!state.cascadeCooldown) {
+    var maxC=Math.min(state.debris.length,20);
+    for (var i=0; i<maxC; i++) {
+      for (var j=i+1; j<maxC; j++) {
+        var d1=state.debris[i], d2=state.debris[j];
+        var dx=d1.x-d2.x, dy=d1.y-d2.y, dz=d1.z-d2.z;
+        if (Math.sqrt(dx*dx+dy*dy+dz*dz)<10) {
+          var cx2=(d1.x+d2.x)/2, cy2=(d1.y+d2.y)/2, cz2=(d1.z+d2.z)/2;
+          var avx=(d1.vx+d2.vx)/2, avy=(d1.vy+d2.vy)/2;
+          // FIX #7: mix Date.now() with frame counter to ensure unique seeds
+          var r2=rng32(Date.now() + frame * 1000);
+          var spawned=[];
+          for (var k=0;k<3;k++) spawned.push({
+            x:cx2+(r2()-0.5)*16, y:cy2+(r2()-0.5)*16, z:Math.max(110,cz2),
+            vx:avx+(r2()-0.5)*0.6, vy:avy+(r2()-0.5)*0.6, vz:(d1.vz+d2.vz)/2,
+            radius:4, tumble:r2()*Math.PI*2, tumbleRate:(r2()-0.5)*0.04, pts:5
+          });
+          state.debris.splice(j,1); state.debris.splice(i,1);
+          state.debris=state.debris.concat(spawned);
+          state.cascades++; state.cascadeCooldown=100; state.glitch=15;
+          if (state.targetObj&&!state.debris.includes(state.targetObj)) {
+            state.targetObj=null; state.targetIdx=-1; setPhase('NONE');
+          }
+          addLog('CASCADE — collision detected. Debris field expanding.');
+          getGeminiAdvice('A Kessler cascade just occurred. '+state.debris.length+' debris objects now active.');
+          // FIX #6: reset mode immediately to TRANSIT so threat detection
+          // doesn't re-fire on the same cascade frame; use explicit cooldown bump
+          state.mode='TRANSIT';
+          state.threatCooldown=300;
+          return;
+        }
+      }
+    }
+  }
+  if (state.cascadeCooldown>0) state.cascadeCooldown--;
+  if (state.glitch>0) state.glitch--;
+
+  // Intercept approach
+  if (state.targetObj) {
+    if (!state.debris.includes(state.targetObj)) {
+      state.targetObj=null; state.targetIdx=-1;
+      state.mode='TRANSIT'; state.adrvPhase='NONE'; state.shipVz=0; state.cameraZoom=1.0;
+      state.snareProgress=0; state.rotationMatch=0;
+      document.getElementById('btn-lock').disabled=false;
+      document.getElementById('btn-snare').disabled=true;
+      document.getElementById('btn-deorbit').disabled=true;
+      document.getElementById('btn-deorbit').classList.remove('active');
+      setPhase('—');
+    } else {
+      state.targetIdx=state.debris.indexOf(state.targetObj);
+      var td=state.targetObj;
+      var dx3=td.x-state.ship.x, dy3=td.y-state.ship.y;
+      // FIX #4/#5: Math.sqrt instead of **
+      var xyDist=Math.sqrt(dx3*dx3+dy3*dy3);
+      state.approachDist=xyDist;
+      // Forward thrust
+      if (state.adrvPhase==='APPROACH'||state.adrvPhase==='MATCHING'||state.adrvPhase==='READY') {
+        state.shipVz=Math.min(state.shipVz+0.18,4.5);
+      } else {
+        state.shipVz*=0.9;
+      }
+      // Steer X/Y
+      var str3=Math.min(0.32, 10/(xyDist+1));
+      state.ship.vx+=(dx3/(xyDist+0.001))*str3;
+      state.ship.vy+=(dy3/(xyDist+0.001))*str3;
+      // Camera zoom
+      var dist3=Math.sqrt(dx3*dx3+dy3*dy3+td.z*td.z);
+      var tz3=1.0+Math.max(0,(400-dist3)/400)*1.4;
+      state.cameraZoom+=(tz3-state.cameraZoom)*0.025;
+    }
+  } else {
+    state.cameraZoom+=(1.0-state.cameraZoom)*0.025;
+    state.shipVz*=0.88;
+  }
+
+  if (state.captureFlash>0) state.captureFlash--;
+
+  // Apply forward thrust
+  if (state.shipVz>0.05&&(state.adrvPhase==='APPROACH'||state.adrvPhase==='MATCHING'||state.adrvPhase==='READY')) {
+    state.debris.forEach(function(d){
+      d.z-=state.shipVz;
+      if (d.z<100){d.z=100;d.vz=Math.abs(d.vz);}
+    });
+  }
+
+  // Repulsion (transit)
+  if (state.mode!=='INTERCEPT') {
+    state.debris.forEach(function(d){
+      var dx4=state.ship.x-d.x, dy4=state.ship.y-d.y;
+      var dist4=Math.sqrt(dx4*dx4+dy4*dy4+d.z*d.z);
+      if (dist4<120){var s4=50/(dist4*dist4+1);state.ship.vx+=(dx4/dist4)*s4;state.ship.vy+=(dy4/dist4)*s4;}
+    });
+  }
+
+  // Dampen
+  var damp=state.mode==='INTERCEPT'?0.95:0.91;
+  state.ship.vx*=damp; state.ship.vy*=damp;
+  state.ship.x+=state.ship.vx; state.ship.y+=state.ship.vy;
+
+  // Deorbit update
+  state.deorbiting=state.deorbiting.filter(function(d){
+    d.life-=0.006;
+    d.trail.push({x:d.x,y:d.y,z:d.z,life:d.life});
+    if (d.trail.length>22) d.trail.shift();
+    return d.life>0;
+  });
+
+  // FIX #6: only detect threats in TRANSIT mode with adequate cooldown,
+  // and never show threat prompt if an intercept is already in progress
+  if (state.mode==='TRANSIT' && frame>80 && !state.threatCooldown && !state.pendingThreat && state.adrvPhase==='NONE') {
+    var threat=detectThreat();
+    if (threat) {
+      state.pendingThreat=threat; state.threatCooldown=150;
+      var el=document.getElementById('iprompt-detail');
+      if(el) el.textContent='Objects '+threat.i+' & '+threat.j+' on collision course — ~'+threat.t+' frames to impact.';
+      document.getElementById('iprompt').style.display='block';
+      document.getElementById('btn-lock').disabled=false;
+      addLog('THREAT — collision in ~'+threat.t+' frames. Intercept recommended.');
+      getGeminiAdvice('Collision detected between debris objects '+threat.i+' and '+threat.j+' in '+threat.t+' frames');
+    }
+  }
+  if (state.threatCooldown>0) state.threatCooldown--;
+
+  // HUD
+  var closestDist=999;
+  if (state.debris.length>0) {
+    closestDist=Math.min.apply(null,state.debris.map(function(d){
+      var dx5=d.x-state.ship.x,dy5=d.y-state.ship.y;
+      return Math.sqrt(dx5*dx5+dy5*dy5+d.z*d.z);
+    }));
+  }
+  var fwd=state.shipVz||0, lat=Math.sqrt(state.ship.vx*state.ship.vx+state.ship.vy*state.ship.vy);
+  document.getElementById('speed-val').textContent=(fwd*11+lat*3+2.8).toFixed(1);
+  document.getElementById('dist-threat').textContent=Math.round(closestDist)+'u';
+  document.getElementById('dist-threat').className='mval'+(closestDist<80?' danger':closestDist<160?' warn':'');
+  document.getElementById('debris-count').textContent=state.debris.length;
+  document.getElementById('captured').textContent=state.captured;
+  document.getElementById('cascades').textContent=state.cascades;
+
+  // Badge
+  var badge=document.getElementById('mode-badge');
+  var modeLabels={TRANSIT:'TRANSIT MODE',INTERCEPT:'INTERCEPT MODE',CASCADE:'CASCADE RESPONSE',DEORBIT:'DEORBIT BURN'};
+  badge.textContent=state.adrvPhase!=='NONE'&&state.adrvPhase!=='—'?state.adrvPhase:(modeLabels[state.mode]||state.mode);
+}
+
+// ─── RENDER LOOP ──────────────────────────────────────────
+// FIX #2: single loop entry — always cancel any existing RAF before starting
+function startLoop() {
+  if (rafId) cancelAnimationFrame(rafId);
+  function loop() {
+    ctx.fillStyle='#00050e'; ctx.fillRect(0,0,W,H);
+    drawVelocityLines();
+    drawStars();
+    drawTarget();
+    drawDebris();
+    drawDeorbit();
+    drawSnareArm();
+    drawApproachHUD();
+    drawCaptureFlash();
+    updatePhysics();
+    rafId = requestAnimationFrame(loop);
+  }
+  rafId = requestAnimationFrame(loop);
+}
+
+// ─── CONTROLS ─────────────────────────────────────────────
+function doLock() {
+  if (!running) return;
+  document.getElementById('iprompt').style.display='none';
+  var threat=detectThreat();
+  var idx=-1;
+  if (threat&&threat.i<state.debris.length&&threat.j<state.debris.length) {
+    // FIX #4/#5: Math.sqrt instead of **
+    var di=Math.sqrt((state.debris[threat.i].x-state.ship.x)*(state.debris[threat.i].x-state.ship.x)+(state.debris[threat.i].y-state.ship.y)*(state.debris[threat.i].y-state.ship.y));
+    var dj=Math.sqrt((state.debris[threat.j].x-state.ship.x)*(state.debris[threat.j].x-state.ship.x)+(state.debris[threat.j].y-state.ship.y)*(state.debris[threat.j].y-state.ship.y));
+    idx=di<dj?threat.i:threat.j;
+  } else {
+    var minD=Infinity;
+    state.debris.forEach(function(d,i){
+      var dist=Math.sqrt((d.x-state.ship.x)*(d.x-state.ship.x)+(d.y-state.ship.y)*(d.y-state.ship.y)+d.z*d.z);
+      if(dist<minD){minD=dist;idx=i;}
+    });
+  }
+  if (idx<0||idx>=state.debris.length){addLog('No valid target.');return;}
+  // Full reset before setting new target
+  state.targetIdx=idx;
+  state.targetObj=state.debris[idx];
+  state.mode='INTERCEPT';
+  state.adrvPhase='APPROACH';
+  state.snareProgress=0;
+  state.rotationMatch=0;
+  state.shipRotation=state.debris[idx].tumble;
+  state.shipVz=0;
+  state.approachDist=999;
+  state.pendingThreat=null;
+  state.threatCooldown=200;
+  document.getElementById('btn-snare').disabled=true;
+  document.getElementById('btn-deorbit').disabled=true;
+  document.getElementById('btn-deorbit').classList.remove('active');
+  var pv=document.getElementById('phase-val');
+  var pd=document.getElementById('phase-display');
+  if(pv) pv.textContent='APPROACH';
+  if(pd) pd.textContent='APPROACH';
+  var badge=document.getElementById('mode-badge');
+  if(badge) badge.textContent='APPROACH';
+  addLog('LOCKED — obj-'+idx+' acquired. ADRV sequence initiated.');
+  getGeminiAdvice('Ship has locked onto debris object '+idx+' and is beginning approach phase');
+}
+
+function confirmIntercept() {document.getElementById('iprompt').style.display='none'; doLock();}
+function dismissIntercept() {
+  state.pendingThreat=null;
+  document.getElementById('iprompt').style.display='none';
+  addLog('Intercept dismissed — continuing transit.');
+}
+
+function doSnare() {
+  if (state.adrvPhase!=='READY') return;
+  state.adrvPhase='SNARE'; state.snareProgress=0;
+  document.getElementById('btn-snare').disabled=true;
+  setPhase('SNARE');
+  addLog('SNARE DEPLOYED — boom arm extending...');
+}
+
+function doBurn() {
+  if (state.adrvPhase!=='MATED') return;
+  if (!state.targetObj||!state.debris.includes(state.targetObj)) return;
+  var td=state.targetObj;
+  state.captureFlash=20;
+  state.deorbiting.push({x:td.x,y:td.y,z:td.z,vx:0,vy:0,vz:0,radius:(td.radius||6)*2.2,life:1.0,trail:[]});
+  var tidx=state.debris.indexOf(td);
+  if(tidx>-1) state.debris.splice(tidx,1);
+  state.captured++;
+  state.targetObj=null; state.targetIdx=-1;
+  state.adrvPhase='DEORBIT'; state.snareProgress=0; state.shipVz=0;
+  document.getElementById('btn-deorbit').disabled=true;
+  document.getElementById('btn-deorbit').classList.remove('active');
+  setPhase('DEORBIT');
+  addLog('DEORBIT BURN — atmospheric reentry initiated.');
+  getGeminiAdvice('Debris successfully captured and deorbit burn initiated. '+state.captured+' objects removed from LEO so far.');
+  setTimeout(function(){
+    addLog('OBJECT DESTROYED — '+state.captured+' removed from LEO.');
+    state.mode='TRANSIT'; state.adrvPhase='NONE'; state.cameraZoom=1.0;
+    state.pendingThreat=null; state.threatCooldown=180; state.shipVz=0;
+    state.targetObj=null; state.targetIdx=-1; state.snareProgress=0;
+    state.rotationMatch=0; state.approachDist=999;
+    document.getElementById('btn-lock').disabled=false;
+    document.getElementById('btn-snare').disabled=true;
+    document.getElementById('btn-deorbit').disabled=true;
+    setPhase('—');
+  },3500);
+}
+
+function resetSim() {
+  // FIX #2: cancel loop before reinitializing, then restart cleanly
+  running=false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId=null; }
+  frame=0; initState();
+  document.getElementById('btn-lock').disabled=true;
+  document.getElementById('btn-snare').disabled=true;
+  document.getElementById('btn-deorbit').disabled=true;
+  document.getElementById('btn-deorbit').classList.remove('active');
+  document.getElementById('iprompt').style.display='none';
+  document.getElementById('mode-badge').textContent='SYSTEM STANDBY';
+  setPhase('—');
+  var el=document.getElementById('log');
+  if(el) el.innerHTML='<div class="log-entry">SYSTEM RESET</div>';
+  running=true;
+  startLoop();
+}
+
+function startSim() {
+  document.getElementById('intro').style.transition='opacity 1s';
+  document.getElementById('intro').style.opacity='0';
+  setTimeout(function(){document.getElementById('intro').style.display='none'; resize();},1000);
+  running=true;
+  document.getElementById('btn-lock').disabled=false;
+  addLog('Mission started. Debris field active.');
+  getGeminiAdvice('Mission just started. '+state.debris.length+' debris objects detected in LEO. Give opening tactical assessment.');
+}
+
+canvas.addEventListener('click', function(e) {
+  if (!running) return;
+  var z=380, x=(e.clientX-W/2)*z/500, y=-(e.clientY-H/2)*z/500;
+  var r3=rng32(Date.now());
+  state.debris.push({x:x,y:y,z:z,vx:(r3()-0.5)*0.28,vy:(r3()-0.5)*0.2,vz:-0.3,
+    radius:6,tumble:r3()*Math.PI*2,tumbleRate:(r3()-0.5)*0.04,pts:6});
+  addLog('Operator deployed debris.');
+});
+
+// ─── INTRO SEQUENCE ───────────────────────────────────────
+var msg = "CADET: Low Earth Orbit is approaching a critical Kessler threshold. You are the final line of autonomous defense. Lock onto collision-bound debris. Match its rotation. Fire the snare. Execute the deorbit burn. Failure results in permanent orbital lockdown. The AI is yours to command. Dismissed.";
+var charIdx=0;
+function type() {
+  if (charIdx<msg.length) {
+    document.getElementById('typewriter').innerHTML+=msg.charAt(charIdx);
+    charIdx++; setTimeout(type,28);
+  }
+}
+
+function goToTitle() {
+  // FIX #3: do NOT reassign vid.src — just unmute and play the already-loaded video
+  var vid=document.getElementById('intro-video');
+  vid.muted=false; vid.volume=0.85;
+  vid.play();
+
+  // Hide the click prompt
+  var sv=document.getElementById('stage-video');
+  sv.style.opacity='0'; sv.style.pointerEvents='none';
+
+  vid.style.filter='grayscale(0.6) contrast(1.2) brightness(0.6)';
+
+  setTimeout(function(){
+    var st=document.getElementById('stage-title');
+    st.style.opacity='1'; st.style.pointerEvents='all';
+    setTimeout(function(){ document.getElementById('title-line').style.width='320px'; }, 400);
+  }, 600);
+
+  vid.loop=false;
+  vid.addEventListener('ended', goToBriefing, {once:true});
+}
+
+function goToBriefing() {
+  var vid=document.getElementById('intro-video');
+  var fadeAudio=setInterval(function(){
+    vid.volume=Math.max(0, vid.volume-0.07);
+    if(vid.volume<=0) clearInterval(fadeAudio);
+  }, 70);
+
+  vid.style.filter='grayscale(1) contrast(1.2) brightness(0.2)';
+
+  var st=document.getElementById('stage-title');
+  st.style.opacity='0'; st.style.pointerEvents='none';
+
+  setTimeout(function(){
+    var sb=document.getElementById('stage-briefing');
+    sb.style.opacity='1'; sb.style.pointerEvents='all';
+    type();
+    // FIX #1: speakIntro only called here, after a confirmed user gesture
+    speakIntro();
+  }, 1000);
+}
+
+// ─── ELEVENLABS ───────────────────────────────────────────
+function speakIntro() {
+  if (!ELEVEN_KEY||ELEVEN_KEY==='YOUR_ELEVEN_KEY_HERE') {
+    document.getElementById('intro-status').textContent='add elevenlabs key for voice narration';
+    return;
+  }
+  fetch('https://api.elevenlabs.io/v1/text-to-speech/'+ELEVEN_VOICE,{
+    method:'POST',
+    headers:{'xi-api-key':ELEVEN_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({text:msg,model_id:'eleven_monolingual_v1',voice_settings:{stability:0.4,similarity_boost:0.8}})
+  }).then(function(res){
+    if(!res.ok) throw new Error();
+    return res.blob();
+  }).then(function(blob){
+    new Audio(URL.createObjectURL(blob)).play();
+    document.getElementById('intro-status').textContent='voice systems online';
+  }).catch(function(){
+    document.getElementById('intro-status').textContent='voice offline';
+  });
+}
+// FIX #1: removed erroneous top-level speakIntro() call here
+
+// FIX #2: start a single render loop (running=false so physics is paused until startSim)
+startLoop();
+</script>
+</body>
+</html>
