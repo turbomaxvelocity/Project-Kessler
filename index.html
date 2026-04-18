@@ -95,30 +95,30 @@ body::after { content:""; position:fixed; inset:0; background:repeating-linear-g
 <body>
 <canvas id="canvas"></canvas>
 
-<!-- INTRO -->
+
 <div id="intro">
-  <!-- Persistent video — always visible behind all stages -->
+  
   <video id="intro-video" muted playsinline loop>
     <source src="https://private-user-images.githubusercontent.com/238754819/580361864-6005865a-d150-414d-be9b-cc52b62bdb47.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzY1NDQwMTQsIm5iZiI6MTc3NjU0MzcxNCwicGF0aCI6Ii8yMzg3NTQ4MTkvNTgwMzYxODY0LTYwMDU4NjVhLWQxNTAtNDE0ZC1iZTliLWNjNTJiNjJiZGI0Ny5tcDQ_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwNDE4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDQxOFQyMDIxNTRaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1iNmYxMjJmODMxODVhMDA3YjFmZTY2NTk3YjFjMTJkY2I3YjFhZjg1N2U4NTJjMmIzMmE4MzllNTc0ODU5NmYwJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZyZXNwb25zZS1jb250ZW50LXR5cGU9dmlkZW8lMkZtcDQifQ._109L9S2I0LeLX_1kvS0vwrerOCjTQfSoZz_nbA4nb0" type="video/mp4">
   </video>
 
-  <!-- Dark overlay that intensifies on stage 2+ -->
+  
   <div id="intro-overlay"></div>
 
-  <!-- STAGE 1: just the prompt over raw video -->
+  
   <div id="stage-video">
     <div id="video-vignette"></div>
     <div id="click-prompt" onclick="goToTitle()">▶ &nbsp; PRESS TO BEGIN</div>
   </div>
 
-  <!-- STAGE 2: Title card -->
+  
   <div id="stage-title">
     <div id="title-main">PROJECT<br><span>KESSLER</span></div>
     <div id="title-line"></div>
     <div id="title-sub">AUTONOMOUS ORBITAL DEBRIS REMEDIATION</div>
   </div>
 
-  <!-- STAGE 3: Briefing -->
+  
   <div id="stage-briefing">
     <div id="briefing-box">
       <div class="intro-tag">NASA ADRV SIMULATION — CLASSIFIED BRIEFING</div>
@@ -131,7 +131,7 @@ body::after { content:""; position:fixed; inset:0; background:repeating-linear-g
   </div>
 </div>
 
-<!-- HUD -->
+
 <div id="hud">
   <div id="mode-badge">SYSTEM STANDBY</div>
   <div id="crosshair"><div class="ch-ring"></div></div>
@@ -185,27 +185,26 @@ body::after { content:""; position:fixed; inset:0; background:repeating-linear-g
 </div>
 
 <script>
-// ─── CONFIG ───────────────────────────────────────────────
+
 var GEMINI_KEY = 'YOUR_GEMINI_KEY_HERE';
 var ELEVEN_KEY = 'YOUR_ELEVEN_KEY_HERE';
 var ELEVEN_VOICE = 'YOUR_ELEVEN_VOICE_ID_HERE';
 
-// ─── CANVAS ───────────────────────────────────────────────
+
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 var W, H;
 function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
 resize(); window.addEventListener('resize', resize);
 
-// ─── STARS ────────────────────────────────────────────────
+
 var stars = Array.from({length:300}, function() { return {
   x: Math.random(), y: Math.random(),
   r: Math.random()*1.4+0.2, spd: Math.random()*0.00015+0.00004, b: Math.random()
 }; });
 
-// ─── RNG ──────────────────────────────────────────────────
+
 function rng32(seed) {
-  // FIX #7: ensure seed is unique per call site by mixing in a counter
   seed = (seed ^ (++rng32.counter * 0x9e3779b9)) >>> 0;
   return function() {
     seed |= 0; seed = seed + 0x6D2B79F5 | 0;
@@ -216,11 +215,10 @@ function rng32(seed) {
 }
 rng32.counter = 0;
 
-// ─── STATE ────────────────────────────────────────────────
+
 var state = {};
 var running = false;
 var frame = 0;
-// FIX #2: single canonical RAF id — no duplicate loops
 var rafId = null;
 
 function initState() {
@@ -236,7 +234,6 @@ function initState() {
       pts:Math.floor(r()*3)+5
     });
   }
-  // Deliberate slow collision pair
   debris[2] = {x:-140,y:60,z:340, vx:0.45,vy:-0.22,vz:-0.06, radius:9, tumble:0, tumbleRate:0.035, pts:6};
   debris[3] = {x:140,y:-60,z:370, vx:-0.45,vy:0.22,vz:-0.06, radius:9, tumble:1.4, tumbleRate:-0.03, pts:5};
 
@@ -257,7 +254,7 @@ function initState() {
 }
 initState();
 
-// ─── LOGGING ──────────────────────────────────────────────
+
 function addLog(msg) {
   state.log.unshift('[' + new Date().toLocaleTimeString() + '] ' + msg);
   if (state.log.length > 20) state.log.pop();
@@ -275,7 +272,7 @@ function setPhase(phase) {
   if (pd) pd.textContent = phase;
 }
 
-// ─── GEMINI ───────────────────────────────────────────────
+
 function getGeminiAdvice(context) {
   var box = document.getElementById('advice-box');
   if (box) box.textContent = 'Uplink active...';
@@ -292,14 +289,14 @@ function getGeminiAdvice(context) {
   });
 }
 
-// ─── PROJECTION ───────────────────────────────────────────
+
 function project(x, y, z) {
   if (z <= 0) return null;
   var fov = 500 * state.cameraZoom;
   return { sx: W/2 + x*fov/z, sy: H/2 - y*fov/z, scale: fov/z };
 }
 
-// ─── DRAW STARS ───────────────────────────────────────────
+
 function drawStars() {
   var thrust = state.shipVz || 0;
   stars.forEach(function(s) {
@@ -321,7 +318,7 @@ function drawStars() {
   });
 }
 
-// ─── DRAW DEBRIS ──────────────────────────────────────────
+
 function drawDebris() {
   var threats = [];
   state.debris.forEach(function(d, i) {
@@ -329,15 +326,12 @@ function drawDebris() {
     var p = project(rx, ry, d.z);
     if (!p) return;
     var isTarget = (d === state.targetObj);
-    // FIX #4/#5: use Math.sqrt instead of ** operator for ES5 consistency
     var dist = Math.sqrt(rx*rx + ry*ry + d.z*d.z);
     var size = Math.max(2, p.scale*d.radius);
 
-    // Glitch effect on cascade
     var gx = state.glitch > 0 ? (Math.random()-0.5)*6 : 0;
     var gy = state.glitch > 0 ? (Math.random()-0.5)*6 : 0;
 
-    // Glow
     if (isTarget) {
       var pulse = 0.2+Math.abs(Math.sin(frame*0.08))*0.3;
       var g = ctx.createRadialGradient(p.sx+gx,p.sy+gy,0,p.sx+gx,p.sy+gy,size*5);
@@ -347,7 +341,6 @@ function drawDebris() {
       ctx.fillStyle=g; ctx.fill();
     }
 
-    // Irregular chunk
     ctx.save();
     ctx.translate(p.sx+gx, p.sy+gy);
     ctx.rotate(d.tumble);
@@ -371,7 +364,6 @@ function drawDebris() {
     ctx.lineWidth=1; ctx.fill(); ctx.stroke();
     ctx.restore();
 
-    // Threat box
     if (dist < 600) {
       var bw=size*4+18, bh=size*3+14;
       var bx=p.sx-bw/2, by=p.sy-bh/2, cl=7;
@@ -390,7 +382,6 @@ function drawDebris() {
     }
   });
 
-  // Threat panel
   threats.sort(function(a,b){return a.dist-b.dist;});
   var tl = document.getElementById('threat-list');
   if (tl) tl.innerHTML = threats.slice(0,5).map(function(t) {
@@ -399,7 +390,7 @@ function drawDebris() {
   }).join('');
 }
 
-// ─── DRAW TARGET STATION ──────────────────────────────────
+
 function drawTarget() {
   var tz = 2000 - frame*1.0;
   if (tz <= 0) return;
@@ -422,7 +413,7 @@ function drawTarget() {
   }
 }
 
-// ─── DRAW VELOCITY LINES ──────────────────────────────────
+
 function drawVelocityLines() {
   if (!running) return;
   ctx.strokeStyle='rgba(0,140,255,0.04)'; ctx.lineWidth=1;
@@ -432,7 +423,7 @@ function drawVelocityLines() {
   }
 }
 
-// ─── DRAW SNARE ARM ───────────────────────────────────────
+
 function drawSnareArm() {
   if (!state.targetObj||!state.debris.includes(state.targetObj)) return;
   if (['MATCHING','READY','SNARE','MATED'].indexOf(state.adrvPhase)===-1) return;
@@ -478,7 +469,7 @@ function drawSnareArm() {
   }
 }
 
-// ─── DRAW DEORBIT ─────────────────────────────────────────
+
 function drawDeorbit() {
   state.deorbiting.forEach(function(d) {
     var p=project(d.x-state.ship.x, d.y-state.ship.y, d.z);
@@ -507,7 +498,7 @@ function drawDeorbit() {
   });
 }
 
-// ─── DRAW APPROACH HUD ────────────────────────────────────
+
 function drawApproachHUD() {
   if (state.mode!=='INTERCEPT'||!state.targetObj) return;
   if (!state.debris.includes(state.targetObj)) return;
@@ -528,14 +519,14 @@ function drawApproachHUD() {
   }
 }
 
-// ─── DRAW CAPTURE FLASH ───────────────────────────────────
+
 function drawCaptureFlash() {
   if (!state.captureFlash) return;
   ctx.fillStyle='rgba(255,255,255,'+(state.captureFlash/20*0.4)+')';
   ctx.fillRect(0,0,W,H);
 }
 
-// ─── PHYSICS ──────────────────────────────────────────────
+
 function ttc(p1,v1,p2,v2) {
   var dpx=p1.x-p2.x, dpy=p1.y-p2.y, dpz=p1.z-p2.z;
   var dvx=v1.x-v2.x, dvy=v1.y-v2.y, dvz=v1.z-v2.z;
@@ -556,7 +547,6 @@ function detectThreat() {
         var fx=d[i].x+d[i].vx*t-(d[j].x+d[j].vx*t);
         var fy=d[i].y+d[i].vy*t-(d[j].y+d[j].vy*t);
         var fz=d[i].z+d[i].vz*t-(d[j].z+d[j].vz*t);
-        // FIX #4/#5: Math.sqrt instead of **
         var dist=Math.sqrt(fx*fx+fy*fy+fz*fz);
         if (dist<80&&t<bestT&&t>10){bestT=t;best={i:i,j:j,t:Math.round(t)};}
       }
@@ -569,10 +559,8 @@ function updatePhysics() {
   if (!running) return;
   frame++; state.frame++;
 
-  // Tumble
   state.debris.forEach(function(d){d.tumble+=d.tumbleRate;});
 
-  // ADRV phase transitions
   if (state.adrvPhase==='APPROACH'&&state.targetObj&&state.debris.includes(state.targetObj)) {
     if (state.approachDist<80&&state.approachDist>=0) {
       setPhase('MATCHING');
@@ -600,7 +588,6 @@ function updatePhysics() {
     }
   }
 
-  // Move debris
   state.debris.forEach(function(d) {
     d.x+=d.vx; d.y+=d.vy; d.z+=d.vz;
     if (Math.abs(d.x)>340) d.vx*=-1;
@@ -609,7 +596,6 @@ function updatePhysics() {
     if (d.z>640){d.z=640;d.vz=-Math.abs(d.vz);}
   });
 
-  // Cascade
   if (!state.cascadeCooldown) {
     var maxC=Math.min(state.debris.length,20);
     for (var i=0; i<maxC; i++) {
@@ -619,7 +605,6 @@ function updatePhysics() {
         if (Math.sqrt(dx*dx+dy*dy+dz*dz)<10) {
           var cx2=(d1.x+d2.x)/2, cy2=(d1.y+d2.y)/2, cz2=(d1.z+d2.z)/2;
           var avx=(d1.vx+d2.vx)/2, avy=(d1.vy+d2.vy)/2;
-          // FIX #7: mix Date.now() with frame counter to ensure unique seeds
           var r2=rng32(Date.now() + frame * 1000);
           var spawned=[];
           for (var k=0;k<3;k++) spawned.push({
@@ -635,8 +620,6 @@ function updatePhysics() {
           }
           addLog('CASCADE — collision detected. Debris field expanding.');
           getGeminiAdvice('A Kessler cascade just occurred. '+state.debris.length+' debris objects now active.');
-          // FIX #6: reset mode immediately to TRANSIT so threat detection
-          // doesn't re-fire on the same cascade frame; use explicit cooldown bump
           state.mode='TRANSIT';
           state.threatCooldown=300;
           return;
@@ -647,7 +630,6 @@ function updatePhysics() {
   if (state.cascadeCooldown>0) state.cascadeCooldown--;
   if (state.glitch>0) state.glitch--;
 
-  // Intercept approach
   if (state.targetObj) {
     if (!state.debris.includes(state.targetObj)) {
       state.targetObj=null; state.targetIdx=-1;
@@ -662,20 +644,16 @@ function updatePhysics() {
       state.targetIdx=state.debris.indexOf(state.targetObj);
       var td=state.targetObj;
       var dx3=td.x-state.ship.x, dy3=td.y-state.ship.y;
-      // FIX #4/#5: Math.sqrt instead of **
       var xyDist=Math.sqrt(dx3*dx3+dy3*dy3);
       state.approachDist=xyDist;
-      // Forward thrust
       if (state.adrvPhase==='APPROACH'||state.adrvPhase==='MATCHING'||state.adrvPhase==='READY') {
         state.shipVz=Math.min(state.shipVz+0.18,4.5);
       } else {
         state.shipVz*=0.9;
       }
-      // Steer X/Y
       var str3=Math.min(0.32, 10/(xyDist+1));
       state.ship.vx+=(dx3/(xyDist+0.001))*str3;
       state.ship.vy+=(dy3/(xyDist+0.001))*str3;
-      // Camera zoom
       var dist3=Math.sqrt(dx3*dx3+dy3*dy3+td.z*td.z);
       var tz3=1.0+Math.max(0,(400-dist3)/400)*1.4;
       state.cameraZoom+=(tz3-state.cameraZoom)*0.025;
@@ -687,7 +665,6 @@ function updatePhysics() {
 
   if (state.captureFlash>0) state.captureFlash--;
 
-  // Apply forward thrust
   if (state.shipVz>0.05&&(state.adrvPhase==='APPROACH'||state.adrvPhase==='MATCHING'||state.adrvPhase==='READY')) {
     state.debris.forEach(function(d){
       d.z-=state.shipVz;
@@ -695,7 +672,6 @@ function updatePhysics() {
     });
   }
 
-  // Repulsion (transit)
   if (state.mode!=='INTERCEPT') {
     state.debris.forEach(function(d){
       var dx4=state.ship.x-d.x, dy4=state.ship.y-d.y;
@@ -704,12 +680,10 @@ function updatePhysics() {
     });
   }
 
-  // Dampen
   var damp=state.mode==='INTERCEPT'?0.95:0.91;
   state.ship.vx*=damp; state.ship.vy*=damp;
   state.ship.x+=state.ship.vx; state.ship.y+=state.ship.vy;
 
-  // Deorbit update
   state.deorbiting=state.deorbiting.filter(function(d){
     d.life-=0.006;
     d.trail.push({x:d.x,y:d.y,z:d.z,life:d.life});
@@ -717,8 +691,6 @@ function updatePhysics() {
     return d.life>0;
   });
 
-  // FIX #6: only detect threats in TRANSIT mode with adequate cooldown,
-  // and never show threat prompt if an intercept is already in progress
   if (state.mode==='TRANSIT' && frame>80 && !state.threatCooldown && !state.pendingThreat && state.adrvPhase==='NONE') {
     var threat=detectThreat();
     if (threat) {
@@ -733,7 +705,6 @@ function updatePhysics() {
   }
   if (state.threatCooldown>0) state.threatCooldown--;
 
-  // HUD
   var closestDist=999;
   if (state.debris.length>0) {
     closestDist=Math.min.apply(null,state.debris.map(function(d){
@@ -749,14 +720,12 @@ function updatePhysics() {
   document.getElementById('captured').textContent=state.captured;
   document.getElementById('cascades').textContent=state.cascades;
 
-  // Badge
   var badge=document.getElementById('mode-badge');
   var modeLabels={TRANSIT:'TRANSIT MODE',INTERCEPT:'INTERCEPT MODE',CASCADE:'CASCADE RESPONSE',DEORBIT:'DEORBIT BURN'};
   badge.textContent=state.adrvPhase!=='NONE'&&state.adrvPhase!=='—'?state.adrvPhase:(modeLabels[state.mode]||state.mode);
 }
 
-// ─── RENDER LOOP ──────────────────────────────────────────
-// FIX #2: single loop entry — always cancel any existing RAF before starting
+
 function startLoop() {
   if (rafId) cancelAnimationFrame(rafId);
   function loop() {
@@ -775,14 +744,13 @@ function startLoop() {
   rafId = requestAnimationFrame(loop);
 }
 
-// ─── CONTROLS ─────────────────────────────────────────────
+
 function doLock() {
   if (!running) return;
   document.getElementById('iprompt').style.display='none';
   var threat=detectThreat();
   var idx=-1;
   if (threat&&threat.i<state.debris.length&&threat.j<state.debris.length) {
-    // FIX #4/#5: Math.sqrt instead of **
     var di=Math.sqrt((state.debris[threat.i].x-state.ship.x)*(state.debris[threat.i].x-state.ship.x)+(state.debris[threat.i].y-state.ship.y)*(state.debris[threat.i].y-state.ship.y));
     var dj=Math.sqrt((state.debris[threat.j].x-state.ship.x)*(state.debris[threat.j].x-state.ship.x)+(state.debris[threat.j].y-state.ship.y)*(state.debris[threat.j].y-state.ship.y));
     idx=di<dj?threat.i:threat.j;
@@ -794,7 +762,6 @@ function doLock() {
     });
   }
   if (idx<0||idx>=state.debris.length){addLog('No valid target.');return;}
-  // Full reset before setting new target
   state.targetIdx=idx;
   state.targetObj=state.debris[idx];
   state.mode='INTERCEPT';
@@ -864,7 +831,6 @@ function doBurn() {
 }
 
 function resetSim() {
-  // FIX #2: cancel loop before reinitializing, then restart cleanly
   running=false;
   if (rafId) { cancelAnimationFrame(rafId); rafId=null; }
   frame=0; initState();
@@ -900,7 +866,7 @@ canvas.addEventListener('click', function(e) {
   addLog('Operator deployed debris.');
 });
 
-// ─── INTRO SEQUENCE ───────────────────────────────────────
+
 var msg = "CADET: Low Earth Orbit is approaching a critical Kessler threshold. You are the final line of autonomous defense. Lock onto collision-bound debris. Match its rotation. Fire the snare. Execute the deorbit burn. Failure results in permanent orbital lockdown. The AI is yours to command. Dismissed.";
 var charIdx=0;
 function type() {
@@ -911,12 +877,10 @@ function type() {
 }
 
 function goToTitle() {
-  // FIX #3: do NOT reassign vid.src — just unmute and play the already-loaded video
   var vid=document.getElementById('intro-video');
   vid.muted=false; vid.volume=0.85;
   vid.play();
 
-  // Hide the click prompt
   var sv=document.getElementById('stage-video');
   sv.style.opacity='0'; sv.style.pointerEvents='none';
 
@@ -948,12 +912,11 @@ function goToBriefing() {
     var sb=document.getElementById('stage-briefing');
     sb.style.opacity='1'; sb.style.pointerEvents='all';
     type();
-    // FIX #1: speakIntro only called here, after a confirmed user gesture
     speakIntro();
   }, 1000);
 }
 
-// ─── ELEVENLABS ───────────────────────────────────────────
+
 function speakIntro() {
   if (!ELEVEN_KEY||ELEVEN_KEY==='YOUR_ELEVEN_KEY_HERE') {
     document.getElementById('intro-status').textContent='add elevenlabs key for voice narration';
@@ -973,9 +936,7 @@ function speakIntro() {
     document.getElementById('intro-status').textContent='voice offline';
   });
 }
-// FIX #1: removed erroneous top-level speakIntro() call here
 
-// FIX #2: start a single render loop (running=false so physics is paused until startSim)
 startLoop();
 </script>
 </body>
